@@ -16,12 +16,13 @@ Function RenameImagesWithDate {
 	param (
 		[Parameter(Mandatory=$True)]
 		[ValidateScript(
-			{ Test-Path -Path $_; },
+			{ Test-Path -Path $_ },
 			ErrorMessage = "'{0}' is not a valid directory according to '{1}'")
 		]
 		[string]$FolderPath
 	)
 
+	Write-Host "`n`n	Beginning Script...`n" -ForegroundColor DarkBlue
 	$countModified = 0
 	$countSkipped = 0
 	$countErrored = 0
@@ -68,8 +69,9 @@ Function RenameImagesWithDate {
 		}
 	}
 
+	# bug: this does not get written to console?
 	# colored output
-	Write-Host "`n	Script Finished Successfully	`n" -BackgroundColor Green
+	Write-Host "`n`n	Script Finished Successfully`n" -ForegroundColor Green
 	Write-Host "Modified " -NoNewline
 	Write-Host $countModified -ForegroundColor Blue -NoNewline
 	Write-Host " files, skipped " -NoNewline
