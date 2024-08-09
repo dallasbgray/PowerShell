@@ -27,56 +27,60 @@ Function RenameImagesWithDate {
 	$countSkipped = 0
 	$countErrored = 0
 
-	Get-ChildItem $FolderPath `
-	| Where-Object { $_.extension -in '.jpg', '.jpeg' } `
-	| ForEach-Object {
-		try {
-			$DateFormat = 'yyyy-MM-dd'
-			$DateTakenWinApi = 12
-			# $DateCreatedWinApi = 4
+	# todo: add parallel processing, -Parallel and $using:VariableName
+	Measure-Command {
+		Get-ChildItem $FolderPath `
+		| Where-Object { $_.extension -in '.jpg', '.jpeg' } `
+		| ForEach-Object {
+			try {
+				$DateFormat = 'yyyy-MM-dd'
+				$DateTakenWinApi = 12
+				# $DateCreatedWinApi = 4
 
-			if ($null -eq $Shell) {
-				$Shell = New-Object -ComObject shell.application
-			}
-	 
-			$dir = $Shell.Namespace($_.DirectoryName)
-
-			$DateTakenString = $dir.GetDetailsOf($dir.ParseName($_.Name), $DateTakenWinApi)
-			if ($DateTakenString -eq '') {
-				# can also use DateCreated as a substitute for DateTaken
-				# $DateTakenString = $dir.GetDetailsOf($dir.ParseName($_.Name), $DateCreatedWinApi)
-				$countSkipped++
-				continue
-			}
+				if ($null -eq $Shell) {
+					$Shell = New-Object -ComObject shell.application
+				}
 		
-			# sanitze string
-			$DateTakenString = $DateTakenString -replace '[^0-9AaPpMm\.\:\ \/]', ''
-			# parse to DateTime
-			$DateTaken = Get-Date $DateTakenString
+				$dir = $Shell.Namespace($_.DirectoryName)
 
-			$currentFileName = $_.Name
-			$newFileName = $DateTaken.ToString($DateFormat) + "_" + $_.Name
-		
-			Rename-Item -Path $_.FullName -NewName $newFileName #-WhatIf -Confirm
-			$countModified++
+				$DateTakenString = $dir.GetDetailsOf($dir.ParseName($_.Name), $DateTakenWinApi)
+				if ($DateTakenString -eq '') {
+					# can also use DateCreated as a substitute for DateTaken
+					# $DateTakenString = $dir.GetDetailsOf($dir.ParseName($_.Name), $DateCreatedWinApi)
 
-			Write-Verbose "Renamed file $currentFileName to $newFileName"
+					$countSkipped++
+					return # continue behaves like break in ForEach-Object, use return intead
+				}
+			
+				# sanitze string
+				$DateTakenString = $DateTakenString -replace '[^0-9AaPpMm\.\:\ \/]', ''
+				# parse to DateTime
+				$DateTaken = Get-Date $DateTakenString
+
+				$currentFileName = $_.Name
+				$newFileName = $DateTaken.ToString($DateFormat) + "_" + $_.Name
+			
+				Rename-Item -Path $_.FullName -NewName $newFileName #-WhatIf -Confirm
+				$countModified++
+
+				Write-Verbose "Renamed file $currentFileName to $newFileName"
+			}
+			catch {
+				$countErrored++
+				Write-Error "an error occurred:"
+				Write-Error "$_"
+			}
 		}
-		catch {
-			$countErrored++
-			Write-Error "an error occurred:"
-			Write-Error "$_"
-		}
-	}
+	} | Select-Object TotalMilliseconds -OutVariable runtimeMillis
 
-	# bug: this does not get written to console?
 	# colored output
 	Write-Host "`n`n	Script Finished Successfully`n" -ForegroundColor Green
 	Write-Host "Modified " -NoNewline
 	Write-Host $countModified -ForegroundColor Blue -NoNewline
 	Write-Host " files, skipped " -NoNewline
 	Write-Host $countSkipped -ForegroundColor Yellow -NoNewline
-	Write-Host " eligible files, and " -NoNewline
+	Write-Host " files without DateTaken properties, and " -NoNewline
 	Write-Host $countErrored -ForegroundColor Red -NoNewline
 	Write-Host " files had errors."
+	Write-Host "$runtimeMillis"
 }
