@@ -14,15 +14,14 @@
 Function RenameImagesWithDate {
 	[CmdletBinding()]
 	param (
-		[Parameter(Mandatory=$true)]
-		[ValidateScriptAttribute({
-			Test-Path -Path $_
-		},
-		ErrorMessage = "'{0}' is not a valid directory")]
+		[Parameter(Mandatory=$True)]
+		[ValidateScript(
+			{ Test-Path -Path $_; },
+			ErrorMessage = "'{0}' is not a valid directory according to '{1}'")
+		]
 		[string]$FolderPath
 	)
 
-	Write-Host "Script begun..."
 	$countModified = 0
 	$countSkipped = 0
 	$countErrored = 0
