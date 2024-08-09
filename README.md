@@ -1,2 +1,2 @@
-# PowerShell
-Powershell scripts I have written and/or found useful
+# scripts
+scripts I think are useful and assist in everyday tasks
