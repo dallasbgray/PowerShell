@@ -1,4 +1,4 @@
-#!bin/zsh
+#!/usr/bin/zsh
 
 # TODO add option to update all, -u or --update-all
 # echo "parameter 1 $1"
@@ -16,7 +16,6 @@ if  ! git clone https://aur.archlinux.org/$1.git; then
     exit
 fi
 
-
 cd $1
 
 # verify PKGBUILD manually
@@ -29,15 +28,8 @@ select yn in "Yes" "No"; do
     esac
 done
 
-# check if gpg signature is detached & run the correct command
-#https://wiki.archlinux.org/title/GnuPG#Verify_a_signature
-#echo "detached or attached?"
-# run this in the same directory as the data file & signature file
-#gpg --verify some-iso-file.iso.sig # where some-iso-file.iso is in the same directory
-# attached gpg --verify some-iso-file.iso.sig
-
-
 # make & install the package
+# if signature is present in PKGBUILD, makepkg tries to automatically verify it
 makepkg --syncdeps --install --clean
 
 # only needed if --install flag is not passed to makepkg
