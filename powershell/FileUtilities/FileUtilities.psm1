@@ -48,7 +48,7 @@ Function Rename-DatedImages {
 				$threadSafeDictionary["numTotal"]++
 
 				$DateFormat = 'yyyy-MM-dd'
-				$DateFormatRegex = '^\d{4}-\d{2}-\d{2}[-_]?'
+				$DateFormatRegex = '^\d{4}-?\d{2}-?\d{0,2}[-_]?'
 				$DateTakenWinApi = 12
 				# $DateCreatedWinApi = 4
 				$currentFileName = $_.Name
