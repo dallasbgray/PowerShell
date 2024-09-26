@@ -6,9 +6,11 @@
 .PARAMETER FolderPath
     Specifies a path to the folder of images to rename
 .PARAMETER Extension
-	singular file extension to filter by, e.g. '.jpg', '.jpeg', or '.cr2'
+	Singular image file extension to filter by, e.g. '.jpg', '.jpeg', or '.cr2'.
+.PARAMETER IncludeVideos
+	Searches for and renames video files that match with an image's filename, e.g. a "live" photo that was split into  a .jpeg and .mov file with the same filename
 .PARAMETER Revert
-	attempts to revert the changes made previously by the command by matching the beginning of the filename with the formatted prefix & removing it
+	Attempts to revert the changes made previously by the command by matching the beginning of the filename with the formatted prefix & removing it
 .EXAMPLE
     PS C:\> Rename-DatedImages -Verbose -FolderPath C:\Path-To-Photos-Here\photos
 .NOTES
@@ -26,23 +28,32 @@ Function Rename-DatedImages {
 		[string]$FolderPath,
 
 		[string]$Extension,
-		
+
+		[switch]$IncludeVideos,
+
 		[switch]$Revert
 	)
 
 	# thread-safe in order to allow the -Parallel option in ForEach-Object in a future implementation
 	$threadSafeDictionary = [System.Collections.Concurrent.ConcurrentDictionary[string, int]]::new()
 	$threadSafeDictionary.TryAdd("numTotal", 0) > $null # redirect to $null to ignore the return value
-	$threadSafeDictionary.TryAdd("numModified", 0) > $null
+	$threadSafeDictionary.TryAdd("numImgModified", 0) > $null
+	$threadSafeDictionary.TryAdd("numVidModified", 0) > $null
 	$threadSafeDictionary.TryAdd("numSkipped", 0) > $null
 	$threadSafeDictionary.TryAdd("numErrored", 0) > $null
 
-	$Extensions = if ($Extension) { $Extension } else { '.jpg', '.jpeg', '.cr2' }
-	Write-Host "`n`n	Renaming Images with file extensions $Extensions...`n" -ForegroundColor DarkBlue
- 
+	$ImageExtensions = if ($Extension) { $Extension } else { '.jpg', '.jpeg', '.cr2' }
+	$VideoExtensions = '.mov', '.mp4', '.mkv'
+
+	Write-Host "`n`n	Renaming images with file extensions $ImageExtensions`n" -ForegroundColor DarkBlue
+	if ($true)
+	{
+		Write-Host "	Renaming videos (with same filename as the image) with file extensions $VideoExtensions`n" -ForegroundColor DarkBlue
+	}
+
 	Measure-Command {
 		Get-ChildItem -Recurse -Depth 3 -Path $FolderPath `
-		| Where-Object { $_.extension -in $Extensions } `
+		| Where-Object { $_.Extension -in $ImageExtensions } `
 		| ForEach-Object {
 			try {
 				$threadSafeDictionary["numTotal"]++
@@ -51,13 +62,14 @@ Function Rename-DatedImages {
 				$DateFormatRegex = '^\d{4}-?\d{2}-?\d{0,2}[-_]?'
 				$DateTakenWinApi = 12
 				# $DateCreatedWinApi = 4
-				$currentFileName = $_.Name
-				$newFileName = ""
+				$currentImageName = $_.Name
+				$currentImageBaseName = $_.BaseName
+				$newImageName = ""
 					
 				if ($Revert) {
-					if ($currentFileName -match $DateFormatRegex) {
+					if ($currentImageName -match $DateFormatRegex) {
 						# remove prefix if matched
-						$newFileName = $currentFileName -replace $DateFormatRegex, ""
+						$newImageName = $currentImageName -replace $DateFormatRegex, ""
 					}
 				}
 				else {
@@ -79,21 +91,39 @@ Function Rename-DatedImages {
 					$DateTakenString = $DateTakenString -replace '[^0-9AaPpMm\.\:\ \/]', ''
 					# parse to DateTime
 					$DateTaken = Get-Date $DateTakenString
+					$FormattedDate = $DateTaken.ToString($DateFormat)
 
-					$newFileName = $DateTaken.ToString($DateFormat) + "-" + $_.Name
+					$newImageName = $FormattedDate + "-" + $_.Name
+
+					if ($IncludeVideos) {
+						# search for video files with the same filename as the image (meaning they belong together, like iPhone "live" photos)
+						$videoFiles = @(
+							Get-ChildItem -Recurse -Depth 3 -Path $FolderPath `
+								| Where-Object { $_.Extension -in $VideoExtensions -and $_.BaseName -eq $currentImageBaseName }
+						) # get video files as an array
+
+						foreach($video in $videoFiles)
+						{
+							# rename movie file with the same date as the image file was if found
+							$currentVideoName = $video.Name
+							$newVideoName = $FormattedDate + "-" + $video.Name
+							
+							Rename-Item -Path $video.FullName -NewName $newVideoName #-WhatIf -Confirm 
+							$threadSafeDictionary["numVidModified"]++
+							Write-Verbose "Renamed file $currentVideoName to $newVideoName"
+						}
+					}
 				}
 	
-				if (![string]::IsNullOrWhiteSpace($newFileName)) {
-					Rename-Item -Path $_.FullName -NewName $newFileName #-WhatIf -Confirm
-					$threadSafeDictionary["numModified"]++
-	
-					Write-Verbose "Renamed file $currentFileName to $newFileName"
+				if (![string]::IsNullOrWhiteSpace($newImageName)) {
+					Rename-Item -Path $_.FullName -NewName $newImageName #-WhatIf -Confirm
+					$threadSafeDictionary["numImgModified"]++
+					Write-Verbose "Renamed file $currentImageName to $newImageName"
 				}
 			}
 			catch {
 				$threadSafeDictionary["numErrored"]++
-				Write-Error "an error occurred:"
-				Write-Error "$_"
+				Write-Error "Error: $_"
 			}
 		}
 	} | Select-Object TotalMilliseconds -OutVariable runtimeMillis
@@ -102,12 +132,16 @@ Function Rename-DatedImages {
 	# colored output
 	Write-Host "`n`n	Script Finished Successfully`n" -ForegroundColor Green
 	Write-Host "Modified " -NoNewline
-	Write-Host $threadSafeDictionary["numModified"] -ForegroundColor Green -NoNewline
-	Write-Host " files, skipped " -NoNewline
+	Write-Host $threadSafeDictionary["numImgModified"] -ForegroundColor Green -NoNewline
+	Write-Host " images and " -NoNewline
+	Write-Host $threadSafeDictionary["numVidModified"] -ForegroundColor Green -NoNewline
+	Write-Host " videos."
+	Write-Host "Skipped " -NoNewLine
 	Write-Host $threadSafeDictionary["numSkipped"] -ForegroundColor Yellow -NoNewline
 	Write-Host " files missing the DateTaken property, and " -NoNewline
 	Write-Host $threadSafeDictionary["numErrored"] -ForegroundColor Red -NoNewline
-	Write-Host " files had errors. Total: " -NoNewline
+	Write-Host " files had errors."
+	Write-Host "Total image files checked: " -NoNewline
 	Write-Host $threadSafeDictionary["numTotal"] -ForegroundColor Blue
 	Write-Host "$runtimeMillis"
 }
