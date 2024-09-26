@@ -42,7 +42,7 @@ Function Rename-DatedImages {
 	$threadSafeDictionary.TryAdd("numSkipped", 0) > $null
 	$threadSafeDictionary.TryAdd("numErrored", 0) > $null
 
-	$ImageExtensions = if ($Extension) { $Extension } else { '.jpg', '.jpeg', '.cr2' }
+	$ImageExtensions = if ($Extension) { $Extension } else { '.jpg', '.jpeg', '.heic', '.cr2' }
 	$VideoExtensions = '.mov', '.mp4', '.mkv'
 
 	Write-Host "`n`n	Renaming images with file extensions $ImageExtensions`n" -ForegroundColor DarkBlue
