@@ -244,3 +244,36 @@ Function Rename-DatedImagesParallel {
 	Write-Host $threadSafeDictionary["numTotal"] -ForegroundColor Blue
 	Write-Host "$runtimeMillis"
 }
+
+
+<#
+.SYNOPSIS
+    Prepends a formatted date to the beginning of image file names
+.DESCRIPTION
+    Only works on a device with a battery
+.EXAMPLE
+    PS C:\> Rename-DatedImages -Verbose -FolderPath C:\Path-To-Photos-Here\photos
+.NOTES
+    Author: Someone online, thanks
+    Date Added: 12/16/2024
+#>
+Function BatteryHealthCheck {
+    $Cycles = (Get-WmiObject -Class BatteryCycleCount -Namespace ROOT\WMI).CycleCount
+    Write-Host "Charge cycles:`t $Cycles"
+    
+    $DesignCapacity = (Get-WmiObject -Class BatteryStaticData -Namespace ROOT\WMI).DesignedCapacity
+    Write-Host "Design capacity: $DesignCapacity mAh"
+    
+    $FullCharge = (Get-WmiObject -Class BatteryFullChargedCapacity -Namespace ROOT\WMI).FullChargedCapacity
+    Write-Host "Full charge:`t $FullCharge mAh"
+    
+    $BatteryHealth = ($FullCharge/$DesignCapacity)*100
+    $BatteryHealth = [math]::Round($BatteryHealth,2)
+    Write-Host "Battery health:`t $BatteryHealth%"
+    
+    $Discharge = (Get-WmiObject -Class BatteryStatus -Namespace ROOT\WMI).DischargeRate
+    Write-Host "Discharge rate:`t $Discharge mA"
+    
+    $Charging = (Get-WmiObject -Class BatteryStatus -Namespace ROOT\WMI).ChargeRate
+    Write-Host "Charging rate:`t $Charging mA"
+}
