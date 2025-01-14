@@ -7,7 +7,7 @@
     Specifies a path to the folder of images to rename
 .PARAMETER Extension
 	Singular image file extension to filter by, e.g. '.jpg', '.jpeg', or '.cr2'.
-.PARAMETER IncludeVideos
+.PARAMETER IgnoreVideos
 	Searches for and renames video files that match with an image's filename, e.g. a "live" photo that was split into  a .jpeg and .mov file with the same filename
 .PARAMETER Revert
 	Attempts to revert the changes made previously by the command by matching the beginning of the filename with the formatted prefix & removing it
@@ -42,8 +42,8 @@ Function Rename-DatedImages {
 	$threadSafeDictionary.TryAdd("numSkipped", 0) > $null
 	$threadSafeDictionary.TryAdd("numErrored", 0) > $null
 
-	$ImageExtensions = if ($Extension) { $Extension } else { '.jpg', '.jpeg', '.heic', '.cr2' }
-	$VideoExtensions = '.mov', '.mp4', '.mkv'
+	$ImageExtensions = if ($Extension) { $Extension } else { '.jpg', '.jpeg', '.heic', '.cr2', '.png' }
+	$VideoExtensions = '.mov', '.mp4', '.mkv', '.avi'
 
 	Write-Host "`n`n	Renaming images with file extensions $ImageExtensions`n" -ForegroundColor DarkBlue
 	if ($true)
@@ -62,6 +62,7 @@ Function Rename-DatedImages {
 				$DateFormatRegex = '^\d{4}-?\d{2}-?\d{0,2}[-_]?'
 				$DateTakenWinApi = 12
 				# $DateCreatedWinApi = 4
+                # $MediaCreatedWinApi = ?
 				$currentImageName = $_.Name
 				$currentImageBaseName = $_.BaseName
 				$newImageName = ""
@@ -95,7 +96,7 @@ Function Rename-DatedImages {
 
 					$newImageName = $FormattedDate + "-" + $_.Name
 
-					if ($IncludeVideos) {
+					if (!$IgnoreVideos) {
 						# search for video files with the same filename as the image (meaning they belong together, like iPhone "live" photos)
 						$videoFiles = @(
 							Get-ChildItem -Recurse -Depth 3 -Path $FolderPath `
